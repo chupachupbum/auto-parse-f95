@@ -1,0 +1,13 @@
+[project]
+name = "auto-parse-f95"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.12"
+dependencies = [
+    "beautifulsoup4>=4.14.3",
+    "cloudscraper>=1.2.71",
+    "google-auth>=2.48.0",
+    "gspread>=6.2.1",
+    "lxml>=6.0.2",
+    "pyyaml>=6.0.3",
+]
