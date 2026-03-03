@@ -65,9 +65,9 @@ def parse_title(h1_element) -> tuple[str, str, str]:
     name = raw_title
 
     if brackets:
-        # Find the version bracket (starts with v or contains a number pattern)
+        # Find the version bracket (starts with v or contains a number pattern or final)
         for b in brackets:
-            if re.match(r"v?\d", b, re.IGNORECASE) or b.lower().startswith("v"):
+            if re.match(r"v?\d", b, re.IGNORECASE) or b.lower().startswith("v") or "final" in b.lower():
                 version = b
                 break
 

@@ -46,67 +46,88 @@ def get_worksheet() -> gspread.Worksheet:
     return spreadsheet.worksheet(SHEET_NAME)
 
 
-def check_duplicate(worksheet: gspread.Worksheet, url: str) -> bool:
-    """Check if a URL already exists in the Link column."""
-    # Get all values from the Link column (F = column 6)
-    link_values = worksheet.col_values(LINK_COLUMN)
-    # Normalize URLs for comparison (strip trailing slashes)
-    normalized_url = url.rstrip("/").lower()
-    for link in link_values:
-        if link.rstrip("/").lower() == normalized_url:
-            return True
-    return False
+def write_game_data(game: GameInfo) -> tuple[int, bool, list[str]]:
+    """Write game data to the Google Sheet.
 
-
-def find_next_row(worksheet: gspread.Worksheet) -> int:
-    """Find the next empty row in the sheet."""
-    # Get all values from column A to find the last occupied row
-    all_values = worksheet.col_values(1)  # Column A
-    return len(all_values) + 1
-
-
-def write_game_data(game: GameInfo) -> int:
-    """Write game data to the next available row in the Google Sheet.
+    If a row with matching name, developer, or link already exists,
+    replace that row's data instead.
 
     Args:
         game: GameInfo dataclass with parsed game data.
 
     Returns:
-        The row number where data was written.
-
-    Raises:
-        ValueError: If the URL already exists in the sheet.
+        A tuple of (row_number, is_replaced, list_of_change_strings)
     """
     worksheet = get_worksheet()
+    all_values = worksheet.get_all_values()
 
-    # Check for duplicates
-    if check_duplicate(worksheet, game.link):
-        raise ValueError(f"This link already exists in the sheet: {game.link}")
+    target_row_idx = None
+    changes = []
 
-    # Find the next empty row
-    next_row = find_next_row(worksheet)
+    parsed_name = game.name.strip().lower()
+    parsed_dev = game.developer.strip().lower()
+    parsed_link = game.link.rstrip("/").lower()
+
+    for i, row in enumerate(all_values):
+        existing_name = row[0].strip().lower() if len(row) > 0 else ""
+        existing_dev = row[3].strip().lower() if len(row) > 3 else ""
+        existing_link = row[5].rstrip("/").lower() if len(row) > 5 else ""
+
+        match = False
+        if parsed_link and existing_link == parsed_link:
+            match = True
+        elif parsed_name and (parsed_name == existing_name or parsed_name == existing_dev):
+            match = True
+        elif parsed_dev and (parsed_dev == existing_name or parsed_dev == existing_dev):
+            match = True
+
+        if match:
+            target_row_idx = i + 1  # 1-indexed
+
+            # Record what changed
+            old_name = row[0] if len(row) > 0 else ""
+            old_dev = row[3] if len(row) > 3 else ""
+            old_ver = row[6] if len(row) > 6 else ""
+
+            if old_name != game.name:
+                changes.append(f"Name: {old_name} -> {game.name}")
+            if old_dev != game.developer:
+                changes.append(f"Dev: {old_dev} -> {game.developer}")
+            if old_ver != game.version:
+                changes.append(f"Ver: {old_ver} -> {game.version}")
+
+            break
+
+    is_replaced = target_row_idx is not None
+    if not is_replaced:
+        target_row_idx = len(all_values) + 1
+
+    # Preserve Note (E) and Resolved (I) if replacing
+    note = ""
+    resolved = False
+    if is_replaced and target_row_idx <= len(all_values):
+        old_row = all_values[target_row_idx - 1]
+        note = old_row[4] if len(old_row) > 4 else ""
+        resolved = old_row[8].strip().upper() == "TRUE" if len(old_row) > 8 else False
 
     # Prepare the row data
-    # Columns: A=Name, B=Other work, C=Complete, D=Developer, E=Note, F=Link,
-    #          G=Version, H=Engine, I=Resolved
     row_data = [
         game.name,            # A: Name
         game.other_work,      # B: Other work (bool → checkbox)
         game.complete,        # C: Complete (bool → checkbox)
         game.developer,       # D: Developer
-        "",                   # E: Note (leave empty)
+        note,                 # E: Note
         game.link,            # F: Link
         game.version,         # G: Version
         game.engine,          # H: Engine
-        False,                # I: Resolved (default unchecked)
+        resolved,             # I: Resolved
     ]
 
-    # Write the row using update to handle booleans properly for checkboxes
-    cell_range = f"A{next_row}:I{next_row}"
+    cell_range = f"A{target_row_idx}:I{target_row_idx}"
     worksheet.update(
         cell_range,
         [row_data],
         value_input_option="USER_ENTERED",
     )
 
-    return next_row
+    return target_row_idx, is_replaced, changes

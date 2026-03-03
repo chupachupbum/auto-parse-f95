@@ -39,12 +39,34 @@ class App:
         self.url_entry.pack(fill="x", pady=(4, 12))
         self.url_entry.focus()
 
-        # Bind Enter key
+        # Bind Enter and Numpad Enter keys
         self.url_entry.bind("<Return>", lambda e: self._on_parse())
+        self.url_entry.bind("<KP_Enter>", lambda e: self._on_parse())
+
+        # Bind Ctrl+A to select all
+        def select_all(event):
+            self.url_entry.select_range(0, 'end')
+            self.url_entry.icursor('end')
+            return 'break'
+        self.url_entry.bind("<Control-a>", select_all)
+        self.url_entry.bind("<Control-A>", select_all)
+
+        # Buttons frame
+        btn_frame = ttk.Frame(frame)
+        btn_frame.pack()
 
         # Parse button
-        self.parse_btn = ttk.Button(frame, text="Parse", command=self._on_parse)
-        self.parse_btn.pack()
+        self.parse_btn = ttk.Button(btn_frame, text="Parse", command=self._on_parse)
+        self.parse_btn.pack(side="left", padx=5)
+
+        # Clear button
+        self.clear_btn = ttk.Button(btn_frame, text="Clear", command=self._on_clear)
+        self.clear_btn.pack(side="left", padx=5)
+
+    def _on_clear(self):
+        """Clear the URL input field."""
+        self.url_var.set("")
+        self.url_entry.focus()
 
         # Status label
         self.status_var = tk.StringVar(value="Ready — paste a link and press Enter or click Parse.")
@@ -68,6 +90,7 @@ class App:
             state = "disabled" if busy else "normal"
             self.url_entry.configure(state=state)
             self.parse_btn.configure(state=state)
+            self.clear_btn.configure(state=state)
         self.root.after(0, update)
 
     def _on_parse(self):
@@ -90,11 +113,17 @@ class App:
             game = parse_f95_thread(url)
 
             self._set_status("Writing to Google Sheet...")
-            row = write_game_data(game)
-
-            self._set_status(
-                f"✓ Done! \"{game.name}\" written to row {row}."
-            )
+            row, replaced, changes = write_game_data(game)
+            
+            if replaced:
+                change_str = ", ".join(changes) if changes else "No changes"
+                self._set_status(
+                    f"✓ Done! \"{game.name}\" replaced at row {row}.\nChanges: {change_str}"
+                )
+            else:
+                self._set_status(
+                    f"✓ Done! \"{game.name}\" written to new row {row}."
+                )
         except ValueError as e:
             self._set_status(f"Error: {e}", error=True)
         except ConnectionError as e:
