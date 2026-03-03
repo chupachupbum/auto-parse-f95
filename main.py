@@ -63,17 +63,17 @@ class App:
         self.clear_btn = ttk.Button(btn_frame, text="Clear", command=self._on_clear)
         self.clear_btn.pack(side="left", padx=5)
 
-    def _on_clear(self):
-        """Clear the URL input field."""
-        self.url_var.set("")
-        self.url_entry.focus()
-
         # Status label
         self.status_var = tk.StringVar(value="Ready — paste a link and press Enter or click Parse.")
         self.status_label = ttk.Label(
             frame, textvariable=self.status_var, wraplength=480, justify="center"
         )
         self.status_label.pack(pady=(12, 0))
+
+    def _on_clear(self):
+        """Clear the URL input field."""
+        self.url_var.set("")
+        self.url_entry.focus()
 
     def _set_status(self, msg: str, error: bool = False):
         """Update the status label (thread-safe)."""

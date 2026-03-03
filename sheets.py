@@ -101,6 +101,14 @@ def write_game_data(game: GameInfo) -> tuple[int, bool, list[str]]:
     is_replaced = target_row_idx is not None
     if not is_replaced:
         target_row_idx = len(all_values) + 1
+        for i, row in enumerate(all_values):
+            if i == 0:  # Skip header
+                continue
+            name = row[0].strip() if len(row) > 0 else ""
+            link = row[5].strip() if len(row) > 5 else ""
+            if not name and not link:
+                target_row_idx = i + 1
+                break
 
     # Preserve Note (E) and Resolved (I) if replacing
     note = ""
