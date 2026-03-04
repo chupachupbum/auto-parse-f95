@@ -65,14 +65,12 @@ def parse_title(h1_element) -> tuple[str, str, str]:
     name = raw_title
 
     if brackets:
-        # Find the version bracket (starts with v or contains a number pattern or final)
-        for b in brackets:
-            if re.match(r"v?\d", b, re.IGNORECASE) or b.lower().startswith("v") or "final" in b.lower():
-                version = b
-                break
+        # First bracket is always the version
+        version = brackets[0]
 
-        # Developer is typically the last bracket
-        developer = brackets[-1]
+        # Developer is the last bracket (if there are at least 2)
+        if len(brackets) >= 2:
+            developer = brackets[-1]
 
         # Name is everything before the first bracket
         first_bracket_pos = raw_title.index("[")

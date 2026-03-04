@@ -46,7 +46,7 @@ def get_worksheet() -> gspread.Worksheet:
     return spreadsheet.worksheet(SHEET_NAME)
 
 
-def write_game_data(game: GameInfo) -> tuple[int, bool, list[str]]:
+def write_game_data(game: GameInfo, note: str = "") -> tuple[int, bool, list[str]]:
     """Write game data to the Google Sheet.
 
     If a row with matching name, developer, or link already exists,
@@ -54,6 +54,7 @@ def write_game_data(game: GameInfo) -> tuple[int, bool, list[str]]:
 
     Args:
         game: GameInfo dataclass with parsed game data.
+        note: Optional note to write to the Note column (E).
 
     Returns:
         A tuple of (row_number, is_replaced, list_of_change_strings)
@@ -110,12 +111,12 @@ def write_game_data(game: GameInfo) -> tuple[int, bool, list[str]]:
                 target_row_idx = i + 1
                 break
 
-    # Preserve Note (E) and Resolved (I) if replacing
-    note = ""
+    # Preserve Note (E) if no new note provided, and always preserve Resolved (I)
     resolved = False
     if is_replaced and target_row_idx <= len(all_values):
         old_row = all_values[target_row_idx - 1]
-        note = old_row[4] if len(old_row) > 4 else ""
+        if not note:
+            note = old_row[4] if len(old_row) > 4 else ""
         resolved = old_row[8].strip().upper() == "TRUE" if len(old_row) > 8 else False
 
     # Prepare the row data

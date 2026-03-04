@@ -17,7 +17,7 @@ class App:
         self.root.resizable(False, False)
 
         # Center the window
-        window_width, window_height = 520, 200
+        window_width, window_height = 520, 260
         screen_w = root.winfo_screenwidth()
         screen_h = root.winfo_screenheight()
         x = (screen_w - window_width) // 2
@@ -36,20 +36,31 @@ class App:
 
         self.url_var = tk.StringVar()
         self.url_entry = ttk.Entry(frame, textvariable=self.url_var, width=65)
-        self.url_entry.pack(fill="x", pady=(4, 12))
+        self.url_entry.pack(fill="x", pady=(4, 8))
         self.url_entry.focus()
 
-        # Bind Enter and Numpad Enter keys
+        # Note input
+        ttk.Label(frame, text="Note (optional):").pack(anchor="w")
+
+        self.note_var = tk.StringVar()
+        self.note_entry = ttk.Entry(frame, textvariable=self.note_var, width=65)
+        self.note_entry.pack(fill="x", pady=(4, 12))
+
+        # Bind Enter and Numpad Enter keys on both entries
         self.url_entry.bind("<Return>", lambda e: self._on_parse())
         self.url_entry.bind("<KP_Enter>", lambda e: self._on_parse())
+        self.note_entry.bind("<Return>", lambda e: self._on_parse())
+        self.note_entry.bind("<KP_Enter>", lambda e: self._on_parse())
 
         # Bind Ctrl+A to select all
         def select_all(event):
-            self.url_entry.select_range(0, 'end')
-            self.url_entry.icursor('end')
+            event.widget.select_range(0, 'end')
+            event.widget.icursor('end')
             return 'break'
         self.url_entry.bind("<Control-a>", select_all)
         self.url_entry.bind("<Control-A>", select_all)
+        self.note_entry.bind("<Control-a>", select_all)
+        self.note_entry.bind("<Control-A>", select_all)
 
         # Buttons frame
         btn_frame = ttk.Frame(frame)
@@ -71,8 +82,9 @@ class App:
         self.status_label.pack(pady=(12, 0))
 
     def _on_clear(self):
-        """Clear the URL input field."""
+        """Clear the URL and Note input fields."""
         self.url_var.set("")
+        self.note_var.set("")
         self.url_entry.focus()
 
     def _set_status(self, msg: str, error: bool = False):
@@ -89,6 +101,7 @@ class App:
         def update():
             state = "disabled" if busy else "normal"
             self.url_entry.configure(state=state)
+            self.note_entry.configure(state=state)
             self.parse_btn.configure(state=state)
             self.clear_btn.configure(state=state)
         self.root.after(0, update)
@@ -101,19 +114,20 @@ class App:
             return
 
         # Run in background thread to keep GUI responsive
+        note = self.note_var.get().strip()
         self._set_busy(True)
         self._set_status("Fetching page...")
-        thread = threading.Thread(target=self._do_parse, args=(url,), daemon=True)
+        thread = threading.Thread(target=self._do_parse, args=(url, note), daemon=True)
         thread.start()
 
-    def _do_parse(self, url: str):
+    def _do_parse(self, url: str, note: str):
         """Background worker: parse the page and write to sheet."""
         try:
             self._set_status("Parsing f95zone page...")
             game = parse_f95_thread(url)
 
             self._set_status("Writing to Google Sheet...")
-            row, replaced, changes = write_game_data(game)
+            row, replaced, changes = write_game_data(game, note=note)
             
             if replaced:
                 change_str = ", ".join(changes) if changes else "No changes"
